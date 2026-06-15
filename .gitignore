@@ -1,0 +1,43 @@
+# CCG 工作区（保留结构，忽略临时文件）
+.ccg/worktrees/
+.ccg/tasks/*/build/
+.ccg/tasks/*/.tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+target/
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# 敏感信息
+*.key
+*.pem
+*.p12
+*.pfx
+.env
+.env.local
+secrets.json
+
+# 日志
+*.log
+logs/
