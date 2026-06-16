@@ -14,6 +14,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          clean: true
+
+      - name: 清理 Cargo 缓存
+        run: |
+          Remove-Item -Recurse -Force "$env:USERPROFILE\.cargo\registry" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "$env:USERPROFILE\.cargo\git" -ErrorAction SilentlyContinue
 
       - name: 安装 Node.js
         uses: actions/setup-node@v3
@@ -41,6 +48,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
+        with:
+          clean: true
+
+      - name: 清理 Cargo 缓存
+        run: |
+          rm -rf ~/.cargo/registry
+          rm -rf ~/.cargo/git
 
       - name: 安装系统依赖
         run: |
@@ -87,6 +101,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          clean: true
+
+      - name: 清理 Cargo 缓存
+        run: |
+          rm -rf ~/.cargo/registry
+          rm -rf ~/.cargo/git
 
       - name: 安装 Rust
         uses: actions-rs/toolchain@v1
