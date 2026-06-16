@@ -76,6 +76,26 @@ jobs:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
         run: npm run tauri build
 
+      - name: Debug Windows build output
+        if: runner.os == 'Windows' && always()
+        shell: pwsh
+        run: |
+          Write-Host "=== 检查构建产物 ==="
+          if (Test-Path 'src-tauri/target') {
+            Write-Host "✅ src-tauri/target 存在"
+            Get-ChildItem -Path 'src-tauri/target' -Directory | Select-Object Name
+            if (Test-Path 'src-tauri/target/release') {
+              Write-Host "`n✅ src-tauri/target/release 存在"
+              Get-ChildItem -Path 'src-tauri/target/release' -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object Name, Length
+            }
+            if (Test-Path 'src-tauri/target/release/bundle') {
+              Write-Host "`n✅ src-tauri/target/release/bundle 存在"
+              Get-ChildItem -Path 'src-tauri/target/release/bundle' -Recurse -Include *.msi,*.exe -ErrorAction SilentlyContinue | Select-Object FullName, Length
+            }
+          } else {
+            Write-Host "❌ src-tauri/target 不存在！"
+          }
+
       - name: Build Tauri App (Linux)
         if: runner.os == 'Linux'
         env:
@@ -92,7 +112,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
           $VERSION = $env:GITHUB_REF_NAME
 
@@ -140,6 +159,16 @@ jobs:
             Write-Host "✅ Portable created from: $exePath"
           } else {
             Write-Warning "❌ Portable exe not found. Tried: $($exeCandidates -join ', ')"
+          }
+
+          # 检查是否至少有一个文件
+          $assets = Get-ChildItem -Path 'release-assets' -ErrorAction SilentlyContinue
+          if ($assets.Count -eq 0) {
+            Write-Error "❌ No assets were created! Build may have failed."
+            exit 1
+          } else {
+            Write-Host "`n✅ Created $($assets.Count) asset(s):"
+            $assets | ForEach-Object { Write-Host "  - $($_.Name)" }
           }
 
       - name: Prepare Linux Assets
