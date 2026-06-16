@@ -4,13 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-tauri = { version = "1.5", features = ["shell-open"] }
+tauri = { version = "1.5", features = ["shell-open", "custom-protocol"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1", features = ["full"] }
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+dirs = "5.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
-anyhow = "1.0"
 sha2 = "0.10"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5.0"
