@@ -7,6 +7,12 @@ use anyhow::Result;
 
 pub struct LinuxNetworkManager;
 
+impl Default for LinuxNetworkManager {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl Network802_1XManager for LinuxNetworkManager {
     fn enable_auth(&self, interface: &str, creds: &Credentials) -> Result<()> {
         tracing::info!("Linux: 配置 802.1X PEAP 认证 - 接口: {}, 用户: {}", interface, creds.username);

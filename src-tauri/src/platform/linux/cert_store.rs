@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;

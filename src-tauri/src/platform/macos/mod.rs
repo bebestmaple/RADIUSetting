@@ -8,6 +8,12 @@ use anyhow::Result;
 
 pub struct MacOSNetworkManager;
 
+impl Default for MacOSNetworkManager {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl Network802_1XManager for MacOSNetworkManager {
     fn enable_auth(&self, interface: &str, creds: &Credentials) -> Result<()> {
         tracing::info!("macOS: 配置 802.1X PEAP 认证 - 接口: {}, 用户: {}", interface, creds.username);

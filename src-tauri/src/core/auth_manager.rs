@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use crate::platform::{AuthStatus as PlatformAuthStatus, Credentials, Network802_1XManager, PlatformManager};
