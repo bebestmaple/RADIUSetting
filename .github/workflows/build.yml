@@ -13,71 +13,114 @@ jobs:
   build-windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           clean: true
 
-      - name: 清理 Cargo 缓存
-        run: |
-          Remove-Item -Recurse -Force "$env:USERPROFILE\.cargo\registry" -ErrorAction SilentlyContinue
-          Remove-Item -Recurse -Force "$env:USERPROFILE\.cargo\git" -ErrorAction SilentlyContinue
-
       - name: 安装 Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
-      - name: 安装 Rust
-        uses: actions-rs/toolchain@v1
+      - name: 安装 Rust (GNU 工具链)
+        run: |
+          rustup default stable-x86_64-pc-windows-gnu
+          rustup target add x86_64-pc-windows-gnu
+
+      - name: 设置 MSYS2 (MinGW-w64)
+        uses: msys2/setup-msys2@v2
         with:
-          toolchain: stable
+          update: true
+          install: mingw-w64-x86_64-gcc
 
       - name: 安装前端依赖
         run: npm install
 
       - name: 构建 Tauri 应用
-        run: npm run tauri build
+        run: |
+          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
+          npm run tauri build
 
-      - name: 上传 Windows 可执行文件
+      - name: 创建 Portable 包
+        run: |
+          $portableDir = "target\portable\RADIUS-Client-Portable"
+          New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+
+          if (Test-Path "target\release\radius-client.exe") {
+            Copy-Item "target\release\radius-client.exe" "$portableDir\RADIUS Client.exe"
+          } elseif (Test-Path "target\release\RADIUS Client.exe") {
+            Copy-Item "target\release\RADIUS Client.exe" "$portableDir\"
+          }
+
+          Get-ChildItem target\release -Filter "WebView2Loader.dll" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "$portableDir\" }
+
+          @"
+          # RADIUS Client portable build marker
+          portable=true
+          "@ | Out-File -FilePath "$portableDir\portable.ini" -Encoding UTF8
+
+          @"
+          # RADIUS Client 0.1.0 - Portable Edition
+
+          ## Usage
+          1. Run "RADIUS Client.exe"
+          2. Configuration saved in this directory
+          3. Portable - copy anywhere
+
+          ## Requirements
+          - Windows 7/10/11
+          - Admin rights (for network config)
+          - WebView2 Runtime (pre-installed on Win10/11)
+          "@ | Out-File -FilePath "$portableDir\README.txt" -Encoding UTF8
+
+          Compress-Archive -Path "$portableDir\*" -DestinationPath "target\portable\RADIUS-Client-Windows-Portable.zip" -Force
+
+      - name: 上传 Windows MSI
         uses: actions/upload-artifact@v4
         with:
-          name: windows-x64
-          path: src-tauri/target/release/radius-client.exe
+          name: windows-msi
+          path: target\release\bundle\msi\*.msi
+
+      - name: 上传 Windows NSIS
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-nsis
+          path: target\release\bundle\nsis\*-setup.exe
+
+      - name: 上传 Windows Portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-portable
+          path: target\portable\RADIUS-Client-Windows-Portable.zip
 
   build-ubuntu:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           clean: true
 
-      - name: 清理 Cargo 缓存
-        run: |
-          rm -rf ~/.cargo/registry
-          rm -rf ~/.cargo/git
-
-      - name: 安装系统依赖
+      - name: 安装系统依赖 (Tauri 2.0)
         run: |
           sudo apt update
           sudo apt install -y \
-            libwebkit2gtk-4.0-dev \
+            libwebkit2gtk-4.1-dev \
             build-essential \
             curl \
             wget \
+            file \
+            libxdo-dev \
             libssl-dev \
-            libgtk-3-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev
 
       - name: 安装 Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: 安装 Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: 安装前端依赖
         run: npm install
@@ -88,36 +131,29 @@ jobs:
       - name: 上传 Ubuntu .deb 包
         uses: actions/upload-artifact@v4
         with:
-          name: ubuntu-deb
-          path: src-tauri/target/release/bundle/deb/*.deb
+          name: linux-deb
+          path: target/release/bundle/deb/*.deb
 
       - name: 上传 AppImage
         uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
-          path: src-tauri/target/release/bundle/appimage/*.AppImage
+          path: target/release/bundle/appimage/*.AppImage
 
   build-macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           clean: true
 
-      - name: 清理 Cargo 缓存
-        run: |
-          rm -rf ~/.cargo/registry
-          rm -rf ~/.cargo/git
-
       - name: 安装 Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: 安装 Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
 
       - name: 安装前端依赖
         run: npm install
@@ -127,20 +163,20 @@ jobs:
 
       - name: 创建 Portable .zip 包
         run: |
-          cd src-tauri/target/release/bundle/macos
-          zip -r "RADIUS-Client-portable.zip" "RADIUS Client.app"
+          cd target/release/bundle/macos
+          zip -r "RADIUS-Client-macOS-Portable.zip" "RADIUS Client.app"
 
       - name: 上传 macOS DMG
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
-          path: src-tauri/target/release/bundle/dmg/*.dmg
+          path: target/release/bundle/dmg/*.dmg
 
       - name: 上传 macOS Portable .zip
         uses: actions/upload-artifact@v4
         with:
           name: macos-portable
-          path: src-tauri/target/release/bundle/macos/*.zip
+          path: target/release/bundle/macos/*.zip
 
   create-release:
     needs: [build-windows, build-ubuntu, build-macos]
@@ -154,19 +190,38 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            windows-x64/*
-            ubuntu-deb/*
+            windows-msi/*
+            windows-nsis/*
+            windows-portable/*
+            linux-deb/*
             linux-appimage/*
             macos-dmg/*
             macos-portable/*
           body: |
-            ## 📦 Portable 绿色版（推荐）
-            - **Windows**: `radius-client.exe` - 解压即用
-            - **Linux**: `*.AppImage` - chmod +x 后运行，跨发行版
-            - **macOS**: `*-portable.zip` - 解压后右键打开
+            ## 🚀 RADIUS Client v0.1.0 (Tauri 2.11.2)
 
-            ## 📦 安装包版本
-            - **Ubuntu/Debian**: `*.deb` - 双击安装
-            - **macOS**: `*.dmg` - 拖拽到 Applications
+            ### 📦 Windows
+            - **MSI 安装包**: `RADIUS Client_0.1.0_x64_en-US.msi` - 标准安装
+            - **NSIS 安装包**: `RADIUS Client_0.1.0_x64-setup.exe` - 轻量快速
+            - **Portable 便携版**: `RADIUS-Client-Windows-Portable.zip` - 解压即用（推荐）
+
+            ### 🐧 Linux
+            - **Debian/Ubuntu**: `*.deb` - `sudo dpkg -i *.deb`
+            - **AppImage**: `*.AppImage` - `chmod +x *.AppImage && ./`（跨发行版）
+
+            ### 🍎 macOS
+            - **DMG 安装包**: `*.dmg` - 拖拽到 Applications
+            - **Portable 便携版**: `*-Portable.zip` - 解压后右键打开
+
+            ### ✨ 主要特性
+            - 一键启用/禁用 RADIUS 认证
+            - 自动配置 802.1X 网络连接
+            - 网络诊断工具
+            - 跨平台支持 (Windows 7+, macOS 10.12+, Linux)
+
+            ### 🔧 技术栈
+            - Tauri 2.11.2
+            - React 18
+            - Rust 1.96.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
