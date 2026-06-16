@@ -54,14 +54,20 @@ jobs:
 
       - name: Build Tauri App (Windows)
         if: runner.os == 'Windows'
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
         run: npm run tauri build
 
       - name: Build Tauri App (Linux)
         if: runner.os == 'Linux'
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
         run: npm run tauri build
 
       - name: Build Tauri App (macOS)
         if: runner.os == 'macOS'
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
         run: npm run tauri build
 
       - name: Prepare Windows Assets
