@@ -43,7 +43,8 @@ secrets.json
 logs/
 
 # Rust
-Cargo.lock
+# 注意：应用程序应该提交 Cargo.lock 以确保依赖版本一致
+# 只有库（library）才应该忽略 Cargo.lock
 
 # Tauri
 src-tauri/target/
