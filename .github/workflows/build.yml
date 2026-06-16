@@ -1,4 +1,4 @@
-name: 构建多平台包
+name: Release
 
 on:
   push:
@@ -10,227 +10,173 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          clean: true
+  release:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-2022
+          - os: ubuntu-22.04
+          - os: macos-14
 
-      - name: 安装 Node.js
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
 
-      - name: 安装 Rust (GNU 工具链)
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        shell: bash
         run: |
-          rustup default stable-x86_64-pc-windows-gnu
-          rustup target add x86_64-pc-windows-gnu
-
-      - name: 设置 MSYS2 (MinGW-w64)
-        uses: msys2/setup-msys2@v2
-        with:
-          update: true
-          install: mingw-w64-x86_64-gcc
-
-      - name: 安装前端依赖
-        run: npm install
-
-      - name: 构建 Tauri 应用
-        env:
-          CARGO_NET_OFFLINE: true
-          CARGO_BUILD_OFFLINE: true
-        run: |
-          $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
-          npm run tauri build
-
-      - name: 创建 Portable 包
-        run: |
-          $portableDir = "target\portable\RADIUS-Client-Portable"
-          New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
-
-          if (Test-Path "target\release\radius-client.exe") {
-            Copy-Item "target\release\radius-client.exe" "$portableDir\RADIUS Client.exe"
-          } elseif (Test-Path "target\release\RADIUS Client.exe") {
-            Copy-Item "target\release\RADIUS Client.exe" "$portableDir\"
-          }
-
-          Get-ChildItem target\release -Filter "WebView2Loader.dll" -Recurse | Select-Object -First 1 | ForEach-Object { Copy-Item $_.FullName "$portableDir\" }
-
-          @"
-          # RADIUS Client portable build marker
-          portable=true
-          "@ | Out-File -FilePath "$portableDir\portable.ini" -Encoding UTF8
-
-          @"
-          # RADIUS Client 0.1.0 - Portable Edition
-
-          ## Usage
-          1. Run "RADIUS Client.exe"
-          2. Configuration saved in this directory
-          3. Portable - copy anywhere
-
-          ## Requirements
-          - Windows 7/10/11
-          - Admin rights (for network config)
-          - WebView2 Runtime (pre-installed on Win10/11)
-          "@ | Out-File -FilePath "$portableDir\README.txt" -Encoding UTF8
-
-          Compress-Archive -Path "$portableDir\*" -DestinationPath "target\portable\RADIUS-Client-Windows-Portable.zip" -Force
-
-      - name: 上传 Windows MSI
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-msi
-          path: target\release\bundle\msi\*.msi
-
-      - name: 上传 Windows NSIS
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-nsis
-          path: target\release\bundle\nsis\*-setup.exe
-
-      - name: 上传 Windows Portable
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-portable
-          path: target\portable\RADIUS-Client-Windows-Portable.zip
-
-  build-ubuntu:
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          clean: true
-
-      - name: 安装系统依赖 (Tauri 2.0)
-        run: |
-          sudo apt update
-          sudo apt install -y \
-            libwebkit2gtk-4.1-dev \
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
             build-essential \
+            pkg-config \
             curl \
             wget \
             file \
-            libxdo-dev \
             libssl-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev
+            librsvg2-dev \
+            libayatana-appindicator3-dev
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev \
+            || sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.0-dev
 
-      - name: 安装 Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: 安装前端依赖
+      - name: Install frontend deps
         run: npm install
 
-      - name: 构建 Tauri 应用
-        env:
-          CARGO_NET_OFFLINE: true
-          CARGO_BUILD_OFFLINE: true
+      - name: Build Tauri App (Windows)
+        if: runner.os == 'Windows'
         run: npm run tauri build
 
-      - name: 上传 Ubuntu .deb 包
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-deb
-          path: target/release/bundle/deb/*.deb
-
-      - name: 上传 AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-appimage
-          path: target/release/bundle/appimage/*.AppImage
-
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          clean: true
-
-      - name: 安装 Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: 安装 Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: 安装前端依赖
-        run: npm install
-
-      - name: 构建 Tauri 应用
-        env:
-          CARGO_NET_OFFLINE: true
-          CARGO_BUILD_OFFLINE: true
+      - name: Build Tauri App (Linux)
+        if: runner.os == 'Linux'
         run: npm run tauri build
 
-      - name: 创建 Portable .zip 包
+      - name: Build Tauri App (macOS)
+        if: runner.os == 'macOS'
+        run: npm run tauri build
+
+      - name: Prepare Windows Assets
+        if: runner.os == 'Windows'
+        shell: pwsh
         run: |
-          cd target/release/bundle/macos
-          zip -r "RADIUS-Client-macOS-Portable.zip" "RADIUS Client.app"
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          $VERSION = $env:GITHUB_REF_NAME
 
-      - name: 上传 macOS DMG
+          # MSI
+          $msi = Get-ChildItem -Path 'target/release/bundle/msi' -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -ne $msi) {
+            Copy-Item $msi.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows.msi")
+            Write-Host "MSI copied"
+          }
+
+          # NSIS
+          $nsis = Get-ChildItem -Path 'target/release/bundle/nsis' -Recurse -Include *-setup.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -ne $nsis) {
+            Copy-Item $nsis.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows-Setup.exe")
+            Write-Host "NSIS copied"
+          }
+
+          # Portable
+          $exe = Get-ChildItem -Path 'target/release' -Include 'radius-client.exe','RADIUS Client.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($null -ne $exe) {
+            $portableDir = 'release-assets/RADIUS-Client-Portable'
+            New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
+            Copy-Item $exe.FullName "$portableDir/RADIUS Client.exe"
+            @"
+          # RADIUS Client portable build marker
+          portable=true
+          "@ | Out-File -FilePath "$portableDir/portable.ini" -Encoding UTF8
+            Compress-Archive -Path "$portableDir/*" -DestinationPath "release-assets/RADIUS-Client-$VERSION-Windows-Portable.zip" -Force
+            Remove-Item -Recurse -Force $portableDir
+            Write-Host "Portable created"
+          }
+
+      - name: Prepare Linux Assets
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p release-assets
+          VERSION="${GITHUB_REF_NAME}"
+
+          APPIMAGE=$(find target/release/bundle -name "*.AppImage" | head -1 || true)
+          [ -n "$APPIMAGE" ] && cp "$APPIMAGE" "release-assets/RADIUS-Client-${VERSION}-Linux.AppImage"
+
+          DEB=$(find target/release/bundle -name "*.deb" | head -1 || true)
+          [ -n "$DEB" ] && cp "$DEB" "release-assets/RADIUS-Client-${VERSION}-Linux.deb"
+
+      - name: Prepare macOS Assets
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p release-assets
+          VERSION="${GITHUB_REF_NAME}"
+
+          DMG=$(find target/release/bundle/dmg -name "*.dmg" | head -1 || true)
+          [ -n "$DMG" ] && cp "$DMG" "release-assets/RADIUS-Client-${VERSION}-macOS.dmg"
+
+          APP=$(find target/release/bundle/macos -name "*.app" | head -1 || true)
+          if [ -n "$APP" ]; then
+            cd target/release/bundle/macos
+            zip -r "../../../../release-assets/RADIUS-Client-${VERSION}-macOS.zip" "$(basename "$APP")"
+            cd ../../../..
+          fi
+
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg
-          path: target/release/bundle/dmg/*.dmg
+          name: release-assets-${{ runner.os }}
+          path: release-assets/*
+          if-no-files-found: error
 
-      - name: 上传 macOS Portable .zip
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-portable
-          path: target/release/bundle/macos/*.zip
-
-  create-release:
-    needs: [build-windows, build-ubuntu, build-macos]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-22.04
+    needs: release
+    permissions:
+      contents: write
     steps:
-      - name: 下载所有制品
+      - name: Download artifacts
         uses: actions/download-artifact@v4
-
-      - name: 创建 Release
-        uses: softprops/action-gh-release@v1
         with:
-          files: |
-            windows-msi/*
-            windows-nsis/*
-            windows-portable/*
-            linux-deb/*
-            linux-appimage/*
-            macos-dmg/*
-            macos-portable/*
+          pattern: release-assets-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la release-assets
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: RADIUS Client ${{ github.ref_name }}
           body: |
-            ## 🚀 RADIUS Client v0.1.0 (Tauri 2.11.2)
+            ## RADIUS Client ${{ github.ref_name }}
 
-            ### 📦 Windows
-            - **MSI 安装包**: `RADIUS Client_0.1.0_x64_en-US.msi` - 标准安装
-            - **NSIS 安装包**: `RADIUS Client_0.1.0_x64-setup.exe` - 轻量快速
-            - **Portable 便携版**: `RADIUS-Client-Windows-Portable.zip` - 解压即用（推荐）
+            ### Windows
+            - **MSI**: `RADIUS-Client-${{ github.ref_name }}-Windows.msi`
+            - **NSIS**: `RADIUS-Client-${{ github.ref_name }}-Windows-Setup.exe`
+            - **Portable**: `RADIUS-Client-${{ github.ref_name }}-Windows-Portable.zip`
 
-            ### 🐧 Linux
-            - **Debian/Ubuntu**: `*.deb` - `sudo dpkg -i *.deb`
-            - **AppImage**: `*.AppImage` - `chmod +x *.AppImage && ./`（跨发行版）
+            ### Linux
+            - **AppImage**: `RADIUS-Client-${{ github.ref_name }}-Linux.AppImage`
+            - **Deb**: `RADIUS-Client-${{ github.ref_name }}-Linux.deb`
 
-            ### 🍎 macOS
-            - **DMG 安装包**: `*.dmg` - 拖拽到 Applications
-            - **Portable 便携版**: `*-Portable.zip` - 解压后右键打开
-
-            ### ✨ 主要特性
-            - 一键启用/禁用 RADIUS 认证
-            - 自动配置 802.1X 网络连接
-            - 网络诊断工具
-            - 跨平台支持 (Windows 7+, macOS 10.12+, Linux)
-
-            ### 🔧 技术栈
-            - Tauri 2.11.2
-            - React 18
-            - Rust 1.96.0
+            ### macOS
+            - **DMG**: `RADIUS-Client-${{ github.ref_name }}-macOS.dmg`
+            - **ZIP**: `RADIUS-Client-${{ github.ref_name }}-macOS.zip`
+          files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
