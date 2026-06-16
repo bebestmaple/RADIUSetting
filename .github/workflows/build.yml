@@ -60,6 +60,13 @@ jobs:
       - name: Update Cargo index
         shell: bash
         run: |
+          # 调试：检查 Cargo 配置
+          echo "=== Cargo config 检查 ==="
+          cat ~/.cargo/config.toml 2>/dev/null || echo "No global config"
+          cat .cargo/config.toml 2>/dev/null || echo "No project config"
+
+          echo "=== 尝试更新索引 ==="
+          cargo --version
           cd src-tauri
           cargo fetch --locked || cargo fetch
 
