@@ -96,11 +96,20 @@ jobs:
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
           $VERSION = $env:GITHUB_REF_NAME
 
+          # 调试：列出所有构建产物
+          Write-Host "=== 构建产物检查 ==="
+          Write-Host "target/release 目录:"
+          Get-ChildItem -Path 'target/release' -Filter '*.exe' | Select-Object Name, FullName
+          Write-Host "`ntarget/release/bundle 目录:"
+          Get-ChildItem -Path 'target/release/bundle' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object Name, FullName
+
           # MSI
           $msi = Get-ChildItem -Path 'target/release/bundle/msi' -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -ne $msi) {
             Copy-Item $msi.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows.msi")
             Write-Host "MSI copied"
+          } else {
+            Write-Host "No MSI found"
           }
 
           # NSIS
@@ -108,10 +117,12 @@ jobs:
           if ($null -ne $nsis) {
             Copy-Item $nsis.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows-Setup.exe")
             Write-Host "NSIS copied"
+          } else {
+            Write-Host "No NSIS found"
           }
 
           # Portable
-          $exe = Get-ChildItem -Path 'target/release' -Include 'radius-client.exe','RADIUS Client.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          $exe = Get-ChildItem -Path 'target/release' -Filter '*.exe' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '*-setup.exe' } | Select-Object -First 1
           if ($null -ne $exe) {
             $portableDir = 'release-assets/RADIUS-Client-Portable'
             New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
@@ -122,7 +133,9 @@ jobs:
           "@ | Out-File -FilePath "$portableDir/portable.ini" -Encoding UTF8
             Compress-Archive -Path "$portableDir/*" -DestinationPath "release-assets/RADIUS-Client-$VERSION-Windows-Portable.zip" -Force
             Remove-Item -Recurse -Force $portableDir
-            Write-Host "Portable created"
+            Write-Host "Portable created: $($exe.Name)"
+          } else {
+            Write-Host "No portable exe found in target/release"
           }
 
       - name: Prepare Linux Assets
