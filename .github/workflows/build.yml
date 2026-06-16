@@ -99,43 +99,54 @@ jobs:
           # 调试：列出所有构建产物
           Write-Host "=== 构建产物检查 ==="
           Write-Host "target/release 目录:"
-          Get-ChildItem -Path 'target/release' -Filter '*.exe' | Select-Object Name, FullName
-          Write-Host "`ntarget/release/bundle 目录:"
-          Get-ChildItem -Path 'target/release/bundle' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object Name, FullName
+          Get-ChildItem -Path 'target/release' -Filter '*.exe' -ErrorAction SilentlyContinue | Select-Object Name, FullName
+          Write-Host "`ntarget/release/bundle 目录结构:"
+          Get-ChildItem -Path 'target/release/bundle' -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | Format-Table -AutoSize
 
           # MSI
           $msi = Get-ChildItem -Path 'target/release/bundle/msi' -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -ne $msi) {
             Copy-Item $msi.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows.msi")
-            Write-Host "MSI copied"
+            Write-Host "✅ MSI copied: $($msi.Name)"
           } else {
-            Write-Host "No MSI found"
+            Write-Host "❌ No MSI found"
           }
 
           # NSIS
           $nsis = Get-ChildItem -Path 'target/release/bundle/nsis' -Recurse -Include *-setup.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -ne $nsis) {
             Copy-Item $nsis.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows-Setup.exe")
-            Write-Host "NSIS copied"
+            Write-Host "✅ NSIS copied: $($nsis.Name)"
           } else {
-            Write-Host "No NSIS found"
+            Write-Host "❌ No NSIS found"
           }
 
-          # Portable
-          $exe = Get-ChildItem -Path 'target/release' -Filter '*.exe' -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '*-setup.exe' } | Select-Object -First 1
+          # Portable - 方法1：查找 target/release 下的原始 exe
+          $exe = Get-ChildItem -Path 'target/release' -Filter '*.exe' -ErrorAction SilentlyContinue |
+                 Where-Object { $_.Name -notlike '*-setup.exe' -and $_.Directory.Name -eq 'release' } |
+                 Select-Object -First 1
+
+          if ($null -eq $exe) {
+            # 方法2：查找 NSIS bundle 内的 exe
+            Write-Host "⚠️ target/release 下未找到 exe，尝试从 NSIS bundle 中查找..."
+            $exe = Get-ChildItem -Path 'target/release/bundle/nsis' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue |
+                   Where-Object { $_.Name -notlike '*-setup.exe' -and $_.Name -notlike 'nsis*.exe' } |
+                   Select-Object -First 1
+          }
+
           if ($null -ne $exe) {
             $portableDir = 'release-assets/RADIUS-Client-Portable'
             New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
             Copy-Item $exe.FullName "$portableDir/RADIUS Client.exe"
             @"
-          # RADIUS Client portable build marker
-          portable=true
-          "@ | Out-File -FilePath "$portableDir/portable.ini" -Encoding UTF8
+# RADIUS Client portable build marker
+portable=true
+"@ | Out-File -FilePath "$portableDir/portable.ini" -Encoding UTF8
             Compress-Archive -Path "$portableDir/*" -DestinationPath "release-assets/RADIUS-Client-$VERSION-Windows-Portable.zip" -Force
             Remove-Item -Recurse -Force $portableDir
-            Write-Host "Portable created: $($exe.Name)"
+            Write-Host "✅ Portable created from: $($exe.FullName)"
           } else {
-            Write-Host "No portable exe found in target/release"
+            Write-Host "❌ No portable exe found - 跳过 Portable 包创建"
           }
 
       - name: Prepare Linux Assets
