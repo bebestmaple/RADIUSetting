@@ -1,0 +1,3 @@
+# 强制使用 crates.io 官方源，确保 CI 环境可访问
+[source.crates-io]
+registry = "sparse+https://index.crates.io/"
