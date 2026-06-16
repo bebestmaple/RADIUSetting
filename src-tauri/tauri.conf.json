@@ -19,7 +19,7 @@
     },
     "bundle": {
       "active": true,
-      "identifier": "com.example.radius-client",
+      "identifier": "com.radius.client",
       "icon": [],
       "resources": [],
       "externalBin": [],
@@ -27,6 +27,7 @@
       "category": "Utility",
       "shortDescription": "RADIUS Authentication Client",
       "longDescription": "Cross-platform RADIUS/802.1X authentication client",
+      "targets": "all",
       "deb": {
         "depends": []
       },
@@ -52,9 +53,6 @@
         "resizable": true,
         "fullscreen": false
       }
-    ],
-    "systemTray": {
-      "iconPath": "icons/icon.png"
-    }
+    ]
   }
 }
