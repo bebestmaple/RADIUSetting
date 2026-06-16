@@ -115,11 +115,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path release-assets | Out-Null
           $VERSION = $env:GITHUB_REF_NAME
 
-          # MSI
-          $msi = Get-ChildItem -Path 'src-tauri/target/release/bundle/msi' -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($null -eq $msi) {
-            $msi = Get-ChildItem -Path 'src-tauri/target/release/bundle' -Recurse -Include *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
-          }
+          # MSI（文件名包含空格）
+          $msi = Get-ChildItem -Path 'target/release/bundle/msi' -Filter '*.msi' -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -ne $msi) {
             Copy-Item $msi.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows.msi")
             Write-Host "✅ MSI copied: $($msi.Name)"
@@ -127,8 +124,8 @@ jobs:
             Write-Warning "❌ No MSI found"
           }
 
-          # NSIS
-          $nsis = Get-ChildItem -Path 'src-tauri/target/release/bundle/nsis' -Recurse -Include *-setup.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          # NSIS（文件名包含空格）
+          $nsis = Get-ChildItem -Path 'target/release/bundle/nsis' -Filter '*-setup.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($null -ne $nsis) {
             Copy-Item $nsis.FullName (Join-Path release-assets "RADIUS-Client-$VERSION-Windows-Setup.exe")
             Write-Host "✅ NSIS copied: $($nsis.Name)"
@@ -136,14 +133,9 @@ jobs:
             Write-Warning "❌ No NSIS found"
           }
 
-          # Portable（参照 cc-switch）
-          $exeCandidates = @(
-            'src-tauri/target/release/radius-client.exe',
-            'src-tauri/target/x86_64-pc-windows-msvc/release/radius-client.exe',
-            'src-tauri/target/x86_64-pc-windows-gnu/release/radius-client.exe'
-          )
-          $exePath = $exeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if ($null -ne $exePath) {
+          # Portable（修正路径：不需要 src-tauri 前缀）
+          $exePath = 'target/release/radius-client.exe'
+          if (Test-Path $exePath) {
             $portableDir = 'release-assets/RADIUS-Client-Portable'
             New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
             Copy-Item $exePath "$portableDir/RADIUS Client.exe"
@@ -158,13 +150,13 @@ jobs:
             Remove-Item -Recurse -Force $portableDir
             Write-Host "✅ Portable created from: $exePath"
           } else {
-            Write-Warning "❌ Portable exe not found. Tried: $($exeCandidates -join ', ')"
+            Write-Warning "❌ Portable exe not found at: $exePath"
           }
 
-          # 检查是否至少有一个文件
+          # 检查结果
           $assets = Get-ChildItem -Path 'release-assets' -ErrorAction SilentlyContinue
           if ($assets.Count -eq 0) {
-            Write-Error "❌ No assets were created! Build may have failed."
+            Write-Error "❌ No assets were created!"
             exit 1
           } else {
             Write-Host "`n✅ Created $($assets.Count) asset(s):"
