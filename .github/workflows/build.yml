@@ -32,7 +32,7 @@ jobs:
         run: npm run tauri build
 
       - name: 上传 Windows 可执行文件
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: windows-x64
           path: src-tauri/target/release/radius-client.exe
@@ -72,13 +72,13 @@ jobs:
         run: npm run tauri build
 
       - name: 上传 Ubuntu .deb 包
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ubuntu-deb
           path: src-tauri/target/release/bundle/deb/*.deb
 
       - name: 上传 AppImage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: linux-appimage
           path: src-tauri/target/release/bundle/appimage/*.AppImage
@@ -110,13 +110,13 @@ jobs:
           zip -r "RADIUS-Client-portable.zip" "RADIUS Client.app"
 
       - name: 上传 macOS DMG
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
           path: src-tauri/target/release/bundle/dmg/*.dmg
 
       - name: 上传 macOS Portable .zip
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: macos-portable
           path: src-tauri/target/release/bundle/macos/*.zip
@@ -127,7 +127,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: 下载所有制品
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: 创建 Release
         uses: softprops/action-gh-release@v1
