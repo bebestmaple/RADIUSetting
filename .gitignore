@@ -41,3 +41,14 @@ secrets.json
 # 日志
 *.log
 logs/
+
+# Rust
+Cargo.lock
+
+# Tauri
+src-tauri/target/
+src-tauri/WixTools/
+
+# 前端构建产物
+dist-ssr/
+*.local

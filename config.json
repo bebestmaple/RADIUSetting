@@ -1,0 +1,13 @@
+{
+  "version": "0.1.0",
+  "authentication": {
+    "protocol": "PEAP",
+    "inner_method": "MSCHAPv2",
+    "anonymous_identity": "anonymous"
+  },
+  "logging": {
+    "level": "info",
+    "file_path": "./logs/radius-client.log",
+    "max_size_mb": 10
+  }
+}

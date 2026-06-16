@@ -1,0 +1,148 @@
+name: 构建多平台包
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: 安装 Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: 安装前端依赖
+        run: npm install
+
+      - name: 构建 Tauri 应用
+        run: npm run tauri build
+
+      - name: 上传 Windows 可执行文件
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-x64
+          path: src-tauri/target/release/radius-client.exe
+
+  build-ubuntu:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 安装系统依赖
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libwebkit2gtk-4.0-dev \
+            build-essential \
+            curl \
+            wget \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: 安装 Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: 安装前端依赖
+        run: npm install
+
+      - name: 构建 Tauri 应用
+        run: npm run tauri build
+
+      - name: 上传 Ubuntu .deb 包
+        uses: actions/upload-artifact@v3
+        with:
+          name: ubuntu-deb
+          path: src-tauri/target/release/bundle/deb/*.deb
+
+      - name: 上传 AppImage
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-appimage
+          path: src-tauri/target/release/bundle/appimage/*.AppImage
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 安装 Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: 安装前端依赖
+        run: npm install
+
+      - name: 构建 Tauri 应用
+        run: npm run tauri build
+
+      - name: 创建 Portable .zip 包
+        run: |
+          cd src-tauri/target/release/bundle/macos
+          zip -r "RADIUS-Client-portable.zip" "RADIUS Client.app"
+
+      - name: 上传 macOS DMG
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-dmg
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+
+      - name: 上传 macOS Portable .zip
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-portable
+          path: src-tauri/target/release/bundle/macos/*.zip
+
+  create-release:
+    needs: [build-windows, build-ubuntu, build-macos]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: 下载所有制品
+        uses: actions/download-artifact@v3
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            windows-x64/*
+            ubuntu-deb/*
+            linux-appimage/*
+            macos-dmg/*
+            macos-portable/*
+          body: |
+            ## 📦 Portable 绿色版（推荐）
+            - **Windows**: `radius-client.exe` - 解压即用
+            - **Linux**: `*.AppImage` - chmod +x 后运行，跨发行版
+            - **macOS**: `*-portable.zip` - 解压后右键打开
+
+            ## 📦 安装包版本
+            - **Ubuntu/Debian**: `*.deb` - 双击安装
+            - **macOS**: `*.dmg` - 拖拽到 Applications
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
