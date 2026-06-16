@@ -37,9 +37,11 @@ jobs:
         run: npm install
 
       - name: 构建 Tauri 应用
+        env:
+          CARGO_NET_OFFLINE: true
         run: |
           $env:PATH = "C:\msys64\mingw64\bin;$env:PATH"
-          npm run tauri build
+          npm run tauri build -- --locked
 
       - name: 创建 Portable 包
         run: |
@@ -126,7 +128,9 @@ jobs:
         run: npm install
 
       - name: 构建 Tauri 应用
-        run: npm run tauri build
+        env:
+          CARGO_NET_OFFLINE: true
+        run: npm run tauri build -- --locked
 
       - name: 上传 Ubuntu .deb 包
         uses: actions/upload-artifact@v4
@@ -159,7 +163,9 @@ jobs:
         run: npm install
 
       - name: 构建 Tauri 应用
-        run: npm run tauri build
+        env:
+          CARGO_NET_OFFLINE: true
+        run: npm run tauri build -- --locked
 
       - name: 创建 Portable .zip 包
         run: |
