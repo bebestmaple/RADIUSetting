@@ -4,6 +4,8 @@ mod core;
 mod platform;
 mod commands;
 
+use tauri::Manager;
+
 fn main() {
     // 初始化日志
     tracing_subscriber::fmt::init();
@@ -18,8 +20,13 @@ fn main() {
     tracing::info!("Starting RADIUS Client v{}", config.version);
 
     tauri::Builder::default()
-        .manage(commands::AppState {
-            auth_manager: std::sync::Mutex::new(core::auth_manager::AuthManager::new()),
+        .plugin(tauri_plugin_shell::init())
+        .setup(|app| {
+            // 初始化应用状态
+            app.manage(commands::AppState {
+                auth_manager: std::sync::Mutex::new(core::auth_manager::AuthManager::new()),
+            });
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::connect_auth,

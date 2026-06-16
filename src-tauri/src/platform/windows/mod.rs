@@ -10,6 +10,12 @@ use anyhow::Result;
 
 pub struct WindowsNetworkManager;
 
+impl Default for WindowsNetworkManager {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl Network802_1XManager for WindowsNetworkManager {
     fn enable_auth(&self, interface: &str, creds: &Credentials) -> Result<()> {
         service_manager::ensure_service_running("dot3svc")?;
@@ -79,7 +85,8 @@ impl Network802_1XManager for WindowsNetworkManager {
 }
 
 fn get_os_version() -> u32 {
-    use winapi::um::sysinfoapi::{GetVersionExW, OSVERSIONINFOEXW};
+    use winapi::um::sysinfoapi::GetVersionExW;
+    use winapi::um::winnt::OSVERSIONINFOEXW;
     use std::mem;
 
     unsafe {

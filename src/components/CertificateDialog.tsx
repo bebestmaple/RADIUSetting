@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 import type { CertificateInfo, AuthState } from '../types/tauri'
 import './CertificateDialog.css'
 

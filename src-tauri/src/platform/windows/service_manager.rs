@@ -3,7 +3,6 @@ use std::ptr::null_mut;
 use std::ffi::OsStr;
 use std::os::windows::ffi::OsStrExt;
 use winapi::um::winsvc::*;
-use winapi::um::winnt::{SERVICE_QUERY_STATUS, SERVICE_START, SC_MANAGER_CONNECT};
 use winapi::shared::winerror::ERROR_SERVICE_ALREADY_RUNNING;
 
 fn to_wide_string(s: &str) -> Vec<u16> {
