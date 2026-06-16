@@ -31,6 +31,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
       - name: Install Linux system deps
         if: runner.os == 'Linux'
         shell: bash
@@ -51,6 +56,12 @@ jobs:
 
       - name: Install frontend deps
         run: npm install
+
+      - name: Update Cargo index
+        shell: bash
+        run: |
+          cd src-tauri
+          cargo fetch --locked || cargo fetch
 
       - name: Build Tauri App (Windows)
         if: runner.os == 'Windows'
